@@ -1,0 +1,410 @@
+<!doctype html>
+<html>
+   <body>
+      <canvas width = "500" height = "500" id = "my_Canvas"></canvas>
+      <div>
+        depth 1
+        <input id="depthSlider" type="range"
+        min="1" max="2.5" step="0.05" value ="1" />
+        2.5
+       </div>
+
+       <div>
+         viewPos -3
+         <input id="zoomSlider" type="range"
+         min="-3" max="0" step="0.05" value ="-2" />
+         0
+        </div>
+
+        <div>
+         xRotation -0.01
+         <input id="xSlider" type="range"
+         min="-0.01" max="0.01" step="0.001" value ="0.003" />
+         0.01
+        </div>
+
+        <div>
+         yRotation -0.01
+         <input id="ySlider" type="range"
+         min="-0.01" max="0.01" step="0.001" value ="0.003" />
+         0.01
+        </div>
+
+        <div>
+         zRotation -0.01
+         <input id="zSlider" type="range"
+         min="-0.01" max="0.01" step="0.001" value ="0.003" />
+         0.01
+        </div>
+
+
+
+        <div>
+         <input type="checkbox" id="wireframeBox" name="wireframe" />
+         <label for="wireframe">Wireframe</label>
+         </div>
+
+      <script>            
+
+         // Creating canvas
+         var canvas = document.getElementById('my_Canvas');
+         gl = canvas.getContext('experimental-webgl');
+      
+         // Defining initial vertices
+         var vertices = [
+            // Front face
+            // Triangle 1
+            -0.5,0.5,0.5,
+            -0.5,-0.5,0.5,
+            0.5,-0.5,0.5, 
+            // Triangle 2
+            -0.5,0.5,0.5, 
+            0.5,0.5,0.5,
+            0.5,-0.5,0.5,
+
+            // Top face
+            // Triangle 1
+            -0.5,0.5,-0.5,
+            -0.5,0.5,0.5,
+            0.5,0.5,0.5,
+            // Triangle 2
+            -0.5,0.5,-0.5,
+            0.5,0.5,-0.5,
+            0.5,0.5,0.5,
+
+            // Back face
+            // Triangle 1
+            -0.5,0.5,-0.5,
+            -0.5,-0.5,-0.5,
+            0.5,-0.5,-0.5, 
+            // Triangle 2
+            -0.5,0.5,-0.5, 
+            0.5,0.5,-0.5,
+            0.5,-0.5,-0.5,
+
+            // Bottom face
+            // Triangle 1
+            -0.5,-0.5,-0.5,
+            -0.5,-0.5,0.5,
+            0.5,-0.5,0.5,
+            // Triangle 2
+            -0.5,-0.5,-0.5,
+            0.5,-0.5,-0.5,
+            0.5,-0.5,0.5,
+
+            // Left face
+            // Triangle 1
+            -0.5,0.5,-0.5,
+            -0.5,-0.5,-0.5,
+            -0.5,-0.5,0.5,
+            // Triangle 2
+            -0.5,0.5,-0.5,
+            -0.5,0.5,0.5,
+            -0.5,-0.5,0.5,
+
+            // Right face
+            // Triangle 1
+            0.5,0.5,-0.5,
+            0.5,-0.5,-0.5,
+            0.5,-0.5,0.5,
+            // Triangle 2
+            0.5,0.5,-0.5,
+            0.5,0.5,0.5,
+            0.5,-0.5,0.5
+
+
+         ];
+
+         // Defining colors
+         var vertexColors = [
+            0.0, 0.0, 0.0 , // black
+            1.0, 0.0, 0.0, // red
+            1.0, 1.0, 0.0,// yellow
+            0.0, 1.0, 0.0,  // green
+            0.0, 0.0, 1.0, // blue
+            1.0, 0.0, 1.0, // magenta
+            1.0, 1.0, 1.0, // white
+            0.0, 1.0, 1.0 // cyan
+        ];
+         
+         // Defining indices
+         indices = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,
+                     36,37,38,39,40,41,42,43,44,45,46,47];
+         
+
+         // ========== Initializing Buffers =================
+
+         // Creating empty buffer object for vertex buffer
+         var vertex_buffer = gl.createBuffer();
+         // Binding vertex buffer
+         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+         // Passing vertex data to buffer
+         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+         // Creating empty buffer object for color buffer
+         var color_buffer = gl.createBuffer();
+         // Binding color buffer
+         gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer)
+         // Passing color data to buffer
+         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexColors), gl.STATIC_DRAW);
+
+         // Creating empty buffer object for index buffer
+         var index_buffer = gl.createBuffer();
+         // Binding index buffer
+         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+         // Passing index data to buffer
+         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+         //================ Shader Program Initialization ====================
+         
+         // Vertex shader code
+         var vertCode =
+            'attribute vec3 vPosition;' +
+            'attribute vec3 vertColor;' +
+            'uniform mat4 Pmatrix;'+
+            'uniform mat4 Vmatrix;'+
+            'uniform mat4 Mmatrix;'+
+				'varying vec3 vColor;' +
+            'void main(void) {' +
+               'vColor = vertColor;' +
+               'gl_Position = Pmatrix*Vmatrix*Mmatrix*vec4(vPosition, 1.0);' +
+            '}';
+            
+         // Create a vertex shader object
+         var vertShader = gl.createShader(gl.VERTEX_SHADER);
+         // Attach vertex shader source code
+         gl.shaderSource(vertShader, vertCode);
+         // Compile the vertex shader
+         gl.compileShader(vertShader);
+
+         var fragCode = 
+            'precision mediump float;' +
+            'varying  vec3 vColor;' +
+            'void main()' +
+            '{' +
+            '  gl_FragColor = vec4(vColor, 1.0);' +
+            '}';
+            
+         // Create fragment shader object
+         var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
+         // Attach fragment shader source code
+         gl.shaderSource(fragShader, fragCode); 
+         // Compile the fragmentt shader
+         gl.compileShader(fragShader);
+
+         // Creating shader program object
+         var shaderProgram = gl.createProgram();
+         // Attaching shaders
+         gl.attachShader(shaderProgram, vertShader);
+         gl.attachShader(shaderProgram, fragShader);
+         // Link both the programs
+         gl.linkProgram(shaderProgram);
+
+         // Debug for shader code
+         if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            console.error('Link failed: ' + gl.getProgramInfoLog(shaderProgram));
+            console.error('vs info-log: ' + gl.getShaderInfoLog(vertShader));
+            console.error('fs info-log: ' + gl.getShaderInfoLog(fragShader));
+        }
+
+         // Use the shader program
+         gl.useProgram(shaderProgram);
+
+         /*======= Associating shaders with buffers=======*/
+
+         // Bind vertex buffer
+         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+         // Getting pos from shader code
+         var pos = gl.getAttribLocation(shaderProgram, "vPosition");
+         // Defining variable type and amount
+         gl.vertexAttribPointer(pos, 3, gl.FLOAT, false, 0, 0);
+         // Enabling attribute
+         gl.enableVertexAttribArray(pos);
+         
+         // Bind index buffer object
+         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, color_buffer);
+         // Getting color from shader code
+         var color = gl.getAttribLocation(shaderProgram, 'vertColor');
+         // Defining variable type and amount
+         gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+         // Enabling attribute
+         gl.enableVertexAttribArray(color);
+
+         //=========Setting up transformations===========
+
+
+         // Creating projection, view, and mov matrices
+         var Pmatrix = gl.getUniformLocation(shaderProgram, "Pmatrix");
+         var Vmatrix = gl.getUniformLocation(shaderProgram, "Vmatrix");
+         var Mmatrix = gl.getUniformLocation(shaderProgram, "Mmatrix");
+
+         // Function to get projection matrix
+         function get_projection(angle, a, zMin, zMax) {
+            var ang = Math.tan((angle*.5)*Math.PI/180);
+            return [
+               0.5/ang, 0 , 0, 0,
+               0, 0.5*a/ang, 0, 0,
+               0, 0, -(zMax+zMin)/(zMax-zMin), -1,
+               0, 0, (-2*zMax*zMin)/(zMax-zMin), 0 
+            ];
+         }
+
+         // Projection matrix vars
+         var near = 1;
+         var far = 12;
+
+         // View matrix vars
+         var zoom = -2;
+
+         // Creating mo matrix
+         var mov_matrix = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+
+         // Event handler for depth slider
+         document.getElementById("depthSlider").onchange = function() {
+            near = parseFloat(event.srcElement.value);
+            far = parseFloat(event.srcElement.value) + 10.0;
+         };
+
+         // Event handler for zoom slider
+         document.getElementById("zoomSlider").onchange = function() {
+            zoom = parseFloat(event.srcElement.value);
+         };
+
+         // Variables to hold rotation speed
+         var xRotation = 0.003;
+         var yRotation = 0.003;
+         var zRotation = 0.003;
+
+         // Event handlers for changing rotation
+
+         document.getElementById("xSlider").onchange = function() {
+            xRotation = parseFloat(event.srcElement.value);
+         };
+
+         document.getElementById("ySlider").onchange = function() {
+            yRotation = parseFloat(event.srcElement.value);
+         };
+
+         document.getElementById("zSlider").onchange = function() {
+            zRotation = parseFloat(event.srcElement.value);
+         };
+
+         /*==================== Rotation ====================*/
+
+         // Function for rotating around z axis
+         function rotateZ(m, angle) {
+            // Getting sin and cos of rotation angle
+            var c = Math.cos(angle);
+            var s = Math.sin(angle);
+            // Storing initial matrix variables
+            var mv0 = m[0], mv4 = m[4], mv8 = m[8];
+
+            // Applying transformation
+            m[0] = c*m[0]-s*m[1];
+            m[4] = c*m[4]-s*m[5];
+            m[8] = c*m[8]-s*m[9];
+
+            m[1]=c*m[1]+s*mv0;
+            m[5]=c*m[5]+s*mv4;
+            m[9]=c*m[9]+s*mv8;
+         }
+
+         // Function for rotating around x axis
+         function rotateX(m, angle) {
+            var c = Math.cos(angle);
+            var s = Math.sin(angle);
+            var mv1 = m[1], mv5 = m[5], mv9 = m[9];
+
+            m[1] = m[1]*c-m[2]*s;
+            m[5] = m[5]*c-m[6]*s;
+            m[9] = m[9]*c-m[10]*s;
+
+            m[2] = m[2]*c+mv1*s;
+            m[6] = m[6]*c+mv5*s;
+            m[10] = m[10]*c+mv9*s;
+         }
+
+         // Function for rotating around y axis
+         function rotateY(m, angle) {
+            var c = Math.cos(angle);
+            var s = Math.sin(angle);
+            var mv0 = m[0], mv4 = m[4], mv8 = m[8];
+
+            m[0] = c*m[0]+s*m[2];
+            m[4] = c*m[4]+s*m[6];
+            m[8] = c*m[8]+s*m[10];
+
+            m[2] = c*m[2]-s*mv0;
+            m[6] = c*m[6]-s*mv4;
+            m[10] = c*m[10]-s*mv8;
+         }
+
+         //================= Drawing cube ===========================
+
+         // Getting checkbox object
+         var wireframeCheckBox = document.getElementById("wireframeBox");
+
+         // Last recorded time
+         var time_old = 0;
+
+         // Funciton to animate cube
+         var animate = function(time) {
+
+            // Time since last loop
+            var dt = time-time_old;
+
+            // Rotating around axis
+            rotateZ(mov_matrix, dt*xRotation);
+            rotateY(mov_matrix, dt*yRotation);
+            rotateX(mov_matrix, dt*zRotation);
+            // Recording new time
+            time_old = time;
+
+            // Enablign depth
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(gl.LEQUAL);
+            // Cearing canvas
+            gl.clearColor(0.5, 0.5, 0.5, 0.9);
+            gl.clearDepth(1.0);
+
+            // Setting viewport
+            gl.viewport(0.0, 0.0, canvas.width, canvas.height);
+            // Clearing color and depth bits
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            // Initializing projection matrix
+            var proj_matrix = get_projection(40, canvas.width/canvas.height, near, far);
+            // Setting matrix to new calculations
+            gl.uniformMatrix4fv(Pmatrix, false, proj_matrix);
+
+            // Creating view matrix
+            var view_matrix = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,zoom,1];
+            // Setting matrix to new calculation
+            gl.uniformMatrix4fv(Vmatrix, false, view_matrix);
+
+            // Creating mov matrix
+            gl.uniformMatrix4fv(Mmatrix, false, mov_matrix);
+
+            // Binding index buffer
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+
+
+            
+            if (wireframeCheckBox.checked == true) {
+               // Drawing wireframe
+               for (var i = 0; i < indices.length; i += 3) {
+                  gl.drawArrays(gl.LINE_LOOP, i, 3);
+            }
+            } else {
+               // Drawing triangles
+               gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+            }
+            
+            // Updating window and looping function
+            window.requestAnimationFrame(animate);
+         }
+         // First call to animate function
+         animate(0);
+      </script>
+    </body>
+</html>
